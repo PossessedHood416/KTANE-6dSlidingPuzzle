@@ -156,7 +156,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       GetComponent<KMBombModule>().OnActivate += Activate;
       FirstActivation = true; //setup in Activate()
 
-      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.0.2 | Startup audio: {1}", ModuleId, FirstActivation);
+      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.0.2", ModuleId);
 
       ModState = "START";
       StaticCubeMats = CubeMats;
