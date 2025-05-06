@@ -168,7 +168,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
          StartCoroutine(CubeArr[i].Wiggle());
       }
 
-      HoleCubeIndex = Rnd.Range(0,64);
+      HoleCubeIndex = 0;
       StartCoroutine(CubeArr[HoleCubeIndex].Shrink());
    }
 
@@ -221,13 +221,17 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       CheckCubeGoal(CubeArr[i]);
       CheckCubeGoal(CubeArr[HoleCubeIndex]);
 
+      int correctCubes = 0;
+
       for(int j = 0; j < 64; j++){
          if(CubeArr[j].CurrentPosInd != CubeArr[j].GoalPosInd){
-            return;
+            correctCubes++;
          }
       }
-      
-      Solve();
+
+      if(correctCubes >= 62){
+         Solve();
+      }
 
    }
 
@@ -332,11 +336,54 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
    }
 
    void Shuffle(int[] texts){
-      for (int t = 0; t < texts.Length; t++ ){
-         int tmp = texts[t];
-         int r = Rnd.Range(t, texts.Length);
-         texts[t] = texts[r];
-         texts[r] = tmp;
+      //normally i would say "trust me on this" but no, dont
+      //idek if this even works
+      bool[] targets = new bool[texts.Length];
+      int targetsCount = 0;
+      bool containsHole = false;
+      int temp;
+
+      //itterate 64 times      
+      for(int i = 0; i < texts.Length; i++){
+         
+         //setup target cubes to be cycled
+         for (int t = 0; t < texts.Length; t++ ){
+            if(Rnd.Range(0, 6) == 0){
+               targets[t] = true;
+               targetsCount++;
+               if(texts[t] == 0) containsHole = true;
+            } else {
+               targets[t] = false;
+            }
+         }
+
+         //odd if no hole, even if ya hole; swap parity
+         if(targetsCount % 2 == 0 && !containsHole){
+            temp = Rnd.Range(0, texts.Length);
+            targets[temp] = !targets[temp];
+         } else if(targetsCount % 2 == 1 && containsHole){
+            temp = Rnd.Range(0, texts.Length);
+            targets[temp] = !targets[temp];
+         }
+
+         //cycle
+         int laststored = -1;
+         int firstPos;
+         for(int t = 0; t < texts.Length; t++){
+            if(targets[t]){
+               if(laststored == -1) firstPos = t;
+               temp = texts[t];
+               texts[t] = laststored;
+               laststored = temp;
+            }
+         }
+
+         //last swap
+         for(int t = 0; t < texts.Length; t++){
+            if(texts[t] == -1){
+               texts[t] = laststored;
+            }
+         }
       }
    }
 
@@ -400,6 +447,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
    IEnumerator WinAni(){
       ModState = "SOLVED";
       //cymk
+      StartCoroutine(RotateBetter());
       for(int i = 0; i < 64; i++) StartCoroutine(CubeArr[i].AniMat(new int[] {0}, true));
       yield return new WaitForSeconds(0.7f);
       for(int i = 0; i < 64; i++){
@@ -416,8 +464,25 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       CubeArr[0].KMS.AddInteractionPunch(4f);
    }
 
+   IEnumerator RotateBetter(){
+      Vector3 rot = CubeParent.transform.localRotation.eulerAngles;
+      Vector3 rot2 = Vector3.zero;
+      for(int i = 0; i < 225; i++){
+         rot2.x = Mathf.Lerp(rot.x, 0, Mathf.Sqrt(i)/15f);
+         rot2.y = Mathf.Lerp(rot.y, 0, Mathf.Sqrt(i)/15f);
+         rot2.z = Mathf.Lerp(rot.z, 0, Mathf.Sqrt(i)/15f);
+         CubeParent.transform.localRotation = Quaternion.Euler(rot2.x, rot2.y, rot2.z);
+         yield return new WaitForSeconds(0.01f);
+      }
+   }
+
+   void Update(){
+
+      //Debug.LogFormat("[6D Sliding Puzzle #{0}] ModState: CubePar Qt: {1},{2},{3}", ModuleId, CubeParent.transform.localRotation.x, CubeParent.transform.localRotation.y, CubeParent.transform.localRotation.z);  
+   }
+
 #pragma warning disable 414
-   private readonly string TwitchHelpMessage = @"MOD CURRENTLY UNSUPPORTED: !{0} <anyhing> TO SOLVE.";
+   private readonly string TwitchHelpMessage = @"MOD CURRENTLY UNSUPPORTED: !{0} <anything> TO SOLVE.";
 #pragma warning restore 414
 
    IEnumerator ProcessTwitchCommand (string Command) {
