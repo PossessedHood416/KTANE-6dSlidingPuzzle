@@ -1,4 +1,16 @@
-﻿using System;
+﻿/* TODO
+
+- lerp slide
+- lerp scale
+- lerp rotate
+- lerp color
+- optimize wiggle
+- fix generation
+- tp handler + auto
+
+*/
+
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,11 +25,11 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
    public KMBombInfo Bomb;
    public KMAudio Audio;
 
-   static int ModuleIdCounter = 1;
-   int ModuleId;
+   private static int ModuleIdCounter = 1;
+   private int ModuleId;
    private bool ModuleSolved;
-   static bool FirstActivation = true;
-   static bool PlayIntro = false;
+
+   private static bool FirstActivation = true;
 
    public KMSelectable[] CubeSelectables;
    public KMSelectable[] HingeSelectables;
@@ -40,6 +52,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
          GoalPosInd = goal;
          isAni = false;
       }
+
       public IEnumerator Shrink(){
          float scale = KMS.transform.localScale.x * 0.99f;
          int failsafe = 0;
@@ -51,6 +64,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
          }
          KMS.transform.localScale = Vector3.zero;
       }
+
       public IEnumerator Enlargen(){
          float scale = KMS.transform.localScale.x + 0.01f;
          int failsafe = 0;
@@ -62,6 +76,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
          }
          KMS.transform.localScale = Vector3.one;
       }
+
       public IEnumerator Slide(float speed = 0.5f, int maxWait = 10){
          Vector3 fro = KMS.transform.localPosition;
          Vector3 to = IntToPos(CurrentPosInd);
@@ -77,6 +92,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
          }
          KMS.transform.localPosition = to;
       }
+
       public IEnumerator Wiggle(){
          //shoutouts to GhostSalt for putting this in GoL3D, you're epic
          float speed1 = 2f;
@@ -89,12 +105,11 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
          speed2 += Rnd.Range(-variance / 2, variance / 2);
          speed3 += Rnd.Range(-variance, variance);
          while (true){
-            if(KMS.transform.parent != null){
-               KMS.transform.localEulerAngles = new Vector3(Mathf.Sin((speed1 / 4) * Time.time) * maxAngle, Mathf.Sin((speed2 / 4) * Time.time) * maxAngle, Mathf.Sin((speed3 / 4) * Time.time) * maxAngle);
-               yield return null;
-            }
+            KMS.transform.localEulerAngles = new Vector3(Mathf.Sin((speed1 / 4) * Time.time) * maxAngle, Mathf.Sin((speed2 / 4) * Time.time) * maxAngle, Mathf.Sin((speed3 / 4) * Time.time) * maxAngle);
+            yield return null;
          }
       }
+
       public IEnumerator AniMat(int[] order, bool wait = false){
          //0123 => cymk
          if(wait){
@@ -136,14 +151,12 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
    private SlidingCube[] CubeArr = new SlidingCube[64];
    private int HoleCubeIndex;
 
-   void Awake () { //Avoid doing calculations in here regarding edgework. Just use this for setting up buttons for simplicity.
+   void Awake () {
       ModuleId = ModuleIdCounter++;
       GetComponent<KMBombModule>().OnActivate += Activate;
+      FirstActivation = true; //setup in Activate()
 
-      if(FirstActivation){
-         FirstActivation = false;
-         PlayIntro = true;
-      }
+      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.0.2 | Startup audio: {1}", ModuleId, FirstActivation);
 
       ModState = "START";
       StaticCubeMats = CubeMats;
@@ -224,7 +237,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       int correctCubes = 0;
 
       for(int j = 0; j < 64; j++){
-         if(CubeArr[j].CurrentPosInd != CubeArr[j].GoalPosInd){
+         if(CubeArr[j].CurrentPosInd == CubeArr[j].GoalPosInd){
             correctCubes++;
          }
       }
@@ -275,20 +288,20 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       HingePrevious = -1;
    }
 
-   void Activate () { //Shit that should happen when the bomb arrives (factory)/Lights turn on
+   void Activate () {
       //gurdian battle | botw
-      if(PlayIntro) Audio.PlaySoundAtTransform("guardian", StatusLight.transform);
+      if(FirstActivation){
+         FirstActivation = false;
+         Audio.PlaySoundAtTransform("guardian", transform);
+         Debug.LogFormat("[6D Sliding Puzzle #{0}] Audio: {0}", ModuleId);
+      }
       StartCoroutine(StartupAni());
-   }
-
-   void OnDestroy () { //Shit you need to do when the bomb ends
-      FirstActivation = true;
    }
 
    void Solve () {
       GetComponent<KMBombModule>().HandlePass();
       StartCoroutine(WinAni());
-      Audio.PlaySoundAtTransform("guardianWin", StatusLight.transform);
+      Audio.PlaySoundAtTransform("guardianWin", transform);
       ModuleSolved = true;
    }
 
@@ -407,7 +420,6 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
          }
          yield return new WaitForSeconds(0.02f);
       }
-
       yield return new WaitForSeconds(5.72f);
       ModState = "READY";
    }
@@ -467,18 +479,13 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
    IEnumerator RotateBetter(){
       Vector3 rot = CubeParent.transform.localRotation.eulerAngles;
       Vector3 rot2 = Vector3.zero;
-      for(int i = 0; i < 225; i++){
-         rot2.x = Mathf.Lerp(rot.x, 0, Mathf.Sqrt(i)/15f);
-         rot2.y = Mathf.Lerp(rot.y, 0, Mathf.Sqrt(i)/15f);
-         rot2.z = Mathf.Lerp(rot.z, 0, Mathf.Sqrt(i)/15f);
+      for(int i = 0; i < 361; i++){
+         rot2.x = Mathf.LerpAngle(rot.x, 0, Mathf.Sqrt(i)/19f);
+         rot2.y = Mathf.LerpAngle(rot.y, 0, Mathf.Sqrt(i)/19f);
+         rot2.z = Mathf.LerpAngle(rot.z, 0, Mathf.Sqrt(i)/19f);
          CubeParent.transform.localRotation = Quaternion.Euler(rot2.x, rot2.y, rot2.z);
-         yield return new WaitForSeconds(0.01f);
+         yield return new WaitForSeconds(0.015f);
       }
-   }
-
-   void Update(){
-
-      //Debug.LogFormat("[6D Sliding Puzzle #{0}] ModState: CubePar Qt: {1},{2},{3}", ModuleId, CubeParent.transform.localRotation.x, CubeParent.transform.localRotation.y, CubeParent.transform.localRotation.z);  
    }
 
 #pragma warning disable 414
