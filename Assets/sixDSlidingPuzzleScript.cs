@@ -1,13 +1,10 @@
 ﻿/* TODO
-
 - lerp slide
 - lerp scale
 - lerp rotate
 - lerp color
 - optimize wiggle
-- fix generation
 - tp handler + auto
-
 */
 
 using System;
@@ -156,7 +153,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       GetComponent<KMBombModule>().OnActivate += Activate;
       FirstActivation = true; //setup in Activate()
 
-      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.0.2", ModuleId);
+      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.0.3", ModuleId);
 
       ModState = "START";
       StaticCubeMats = CubeMats;
@@ -172,16 +169,15 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
 
       int[] Scramble =  new int[64];
       for(int i = 0; i < 64; i++) Scramble[i] = i;
-      Shuffle(Scramble);
 
+      HoleCubeIndex = Rnd.Range(0, 64);
+      Shuffle(Scramble);
       for(int i = 0; i < 64; i++){
          CubeArr[i] = new SlidingCube(CubeSelectables[i], Scramble[i], i);
          CubeArr[i].KMS.transform.localPosition = new Vector3(0, -5, 0);
          CubeArr[i].KMS.GetComponent<Renderer>().material = CubeMats[3];
          StartCoroutine(CubeArr[i].Wiggle());
       }
-
-      HoleCubeIndex = 0;
       StartCoroutine(CubeArr[HoleCubeIndex].Shrink());
    }
 
@@ -234,17 +230,13 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       CheckCubeGoal(CubeArr[i]);
       CheckCubeGoal(CubeArr[HoleCubeIndex]);
 
-      int correctCubes = 0;
-
       for(int j = 0; j < 64; j++){
          if(CubeArr[j].CurrentPosInd == CubeArr[j].GoalPosInd){
-            correctCubes++;
+            return;
          }
       }
+      Solve();
 
-      if(correctCubes >= 62){
-         Solve();
-      }
 
    }
 
@@ -293,7 +285,6 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       if(FirstActivation){
          FirstActivation = false;
          Audio.PlaySoundAtTransform("guardian", transform);
-         Debug.LogFormat("[6D Sliding Puzzle #{0}] Audio: {0}", ModuleId);
       }
       StartCoroutine(StartupAni());
    }
@@ -318,9 +309,33 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       return arr;
    }
 
+   static int ArrToInt (int[] arr) {
+      string posString = "";
+      for(int j = 5; j>=0; j--){
+         posString += arr[j].ToString();
+      }
+      return Convert.ToInt32(posString, 2);
+   }
+
    static int IsAdjacent (SlidingCube a, SlidingCube b){
       int[] x = IntToArr(a.CurrentPosInd);
       int[] y = IntToArr(b.CurrentPosInd);
+
+      int axisOfChange = 0;
+      int checkma = 0;
+      for(int i = 0; i < 6; i++){
+         if(x[i] != y[i]){
+            checkma++;
+            axisOfChange = i;
+         }
+      }
+      if(checkma == 1){return axisOfChange;}
+      else {return -1;}
+   }
+
+   static int IsAdjacent (int a, int b){
+      int[] x = IntToArr(a);
+      int[] y = IntToArr(b);
 
       int axisOfChange = 0;
       int checkma = 0;
@@ -338,66 +353,35 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       if(i == -1) return new Vector3(0f, -5f, 0f);
       Vector3 pos = new Vector3(-2.5f, -2.5f, -2.5f);
       int[] arr = IntToArr(i);
-      //XYZ RST
+      //XYZ RTS
       if(arr[0] == 1) pos.x += 1.2f;
       if(arr[1] == 1) pos.y += 1.2f;
       if(arr[2] == 1) pos.z += 1.2f;
       if(arr[3] == 1) pos.x += 3.8f;
-      if(arr[4] == 1) pos.z += 3.8f;
-      if(arr[5] == 1) pos.y += 3.8f;
+      if(arr[4] == 1) pos.y += 3.8f;
+      if(arr[5] == 1) pos.z += 3.8f;
       return pos;
    }
 
    void Shuffle(int[] texts){
-      //normally i would say "trust me on this" but no, dont
-      //idek if this even works
-      bool[] targets = new bool[texts.Length];
-      int targetsCount = 0;
-      bool containsHole = false;
-      int temp;
+      //it just works i think
+      int HolePos = HoleCubeIndex;
 
-      //itterate 64 times      
-      for(int i = 0; i < texts.Length; i++){
-         
-         //setup target cubes to be cycled
-         for (int t = 0; t < texts.Length; t++ ){
-            if(Rnd.Range(0, 6) == 0){
-               targets[t] = true;
-               targetsCount++;
-               if(texts[t] == 0) containsHole = true;
-            } else {
-               targets[t] = false;
-            }
-         }
+      for(int i = 0; i < 512; i++){
+         int axisToSwap = Rnd.Range(0, 6);
+         int[] TargetArr = IntToArr(HolePos);
+         TargetArr[axisToSwap] = (TargetArr[axisToSwap] + 1) % 2;
+         int TargetPos = ArrToInt(TargetArr);
 
-         //odd if no hole, even if ya hole; swap parity
-         if(targetsCount % 2 == 0 && !containsHole){
-            temp = Rnd.Range(0, texts.Length);
-            targets[temp] = !targets[temp];
-         } else if(targetsCount % 2 == 1 && containsHole){
-            temp = Rnd.Range(0, texts.Length);
-            targets[temp] = !targets[temp];
-         }
+         int b = texts[HolePos];
+         texts[HolePos] = texts[TargetPos];
+         texts[TargetPos] = b;
 
-         //cycle
-         int laststored = -1;
-         int firstPos;
-         for(int t = 0; t < texts.Length; t++){
-            if(targets[t]){
-               if(laststored == -1) firstPos = t;
-               temp = texts[t];
-               texts[t] = laststored;
-               laststored = temp;
-            }
-         }
-
-         //last swap
-         for(int t = 0; t < texts.Length; t++){
-            if(texts[t] == -1){
-               texts[t] = laststored;
-            }
-         }
+         b = HolePos;
+         HolePos = TargetPos;
+         TargetPos = b;
       }
+      HoleCubeIndex = HolePos;
    }
 
    void CheckCubeGoal(SlidingCube a){
