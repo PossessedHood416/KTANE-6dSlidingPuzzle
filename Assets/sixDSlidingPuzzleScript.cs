@@ -153,7 +153,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       GetComponent<KMBombModule>().OnActivate += Activate;
       FirstActivation = true; //setup in Activate()
 
-      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.0.3", ModuleId);
+      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.0.3.1", ModuleId);
 
       ModState = "START";
       StaticCubeMats = CubeMats;
@@ -231,7 +231,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       CheckCubeGoal(CubeArr[HoleCubeIndex]);
 
       for(int j = 0; j < 64; j++){
-         if(CubeArr[j].CurrentPosInd == CubeArr[j].GoalPosInd){
+         if(CubeArr[j].CurrentPosInd != CubeArr[j].GoalPosInd){
             return;
          }
       }
