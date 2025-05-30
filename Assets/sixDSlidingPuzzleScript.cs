@@ -142,7 +142,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       GetComponent<KMBombModule>().OnActivate += Activate;
       FirstActivation = true; //setup in Activate()
 
-      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.0.5", ModuleId);
+      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.0.5.1", ModuleId);
 
       ModState = "START";
       StaticCubeMats = CubeMats;
@@ -279,10 +279,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
    }
 
    void Solve () {
-      GetComponent<KMBombModule>().HandlePass();
       StartCoroutine(WinAni());
-      Audio.PlaySoundAtTransform("guardianWin", transform);
-      ModuleSolved = true;
    }
 
    //position fuckery
@@ -434,26 +431,37 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
 
    IEnumerator WinAni(){
       ModState = "SOLVED";
-      //cymk
+      ModuleSolved = true;
+      GetComponent<KMBombModule>().HandlePass();
+
+      Audio.PlaySoundAtTransform("guardianWin", transform);
+      
       StartCoroutine(RotateToZero());
+      
+      yield return new WaitForSeconds(0.83f);
+
       for(int i = 0; i < 64; i++){
          if(CubeArr[i].AniMatCoroutine != null) StopCoroutine(CubeArr[i].AniMatCoroutine);
-         CubeArr[i].AniMatCoroutine = StartCoroutine(CubeArr[i].AniMat(new int[] {0}, true));
+         CubeArr[i].AniMatCoroutine = StartCoroutine(CubeArr[i].AniMat(new int[] {0}));
       }
-      yield return new WaitForSeconds(0.7f);
+
+      yield return new WaitForSeconds(0.78f);
+
       for(int i = 0; i < 64; i++){
          if(CubeArr[i].AniMatCoroutine != null) StopCoroutine(CubeArr[i].AniMatCoroutine);
-         CubeArr[i].AniMatCoroutine = StartCoroutine(CubeArr[i].AniMat(new int[] {2}, true));
-         yield return new WaitForSeconds(0.02f);
+         CubeArr[i].AniMatCoroutine = StartCoroutine(CubeArr[i].AniMat(new int[] {3}));
+         yield return new WaitForSeconds(0.03f);
       }
-      yield return new WaitForSeconds(1.4f);
+
+      yield return new WaitForSeconds(0.52f);
 
       for(int i = 0; i < 64; i++){
          CubeArr[i].CurrentPosInd = -1;
          StartCoroutine(CubeArr[i].Slide());
          yield return null;
       }
-      CubeArr[0].KMS.AddInteractionPunch(4f);
+      CubeArr[0].KMS.AddInteractionPunch(5f);
+      Debug.LogFormat("[6D Sliding Puzzle #{0}] Solved.", ModuleId);
    }
 
    IEnumerator RotateToZero(){
