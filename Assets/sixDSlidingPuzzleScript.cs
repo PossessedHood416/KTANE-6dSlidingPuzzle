@@ -37,13 +37,13 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       public KMSelectable KMS;
       public int CurrentPosInd;
       public int GoalPosInd;
-      public bool isAni;
+      public Coroutine AniMatCoroutine;
       
       public SlidingCube(KMSelectable kms, int ind, int goal){
          KMS = kms;
          CurrentPosInd = ind;
          GoalPosInd = goal;
-         isAni = false;
+         AniMatCoroutine = null;
       }
 
       public IEnumerator Shrink(){
@@ -56,7 +56,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
             newV3.y = Mathf.LerpAngle(fro.y, to.y, sigmoidLerp(i/10f));
             newV3.z = Mathf.LerpAngle(fro.z, to.z, sigmoidLerp(i/10f));
             KMS.transform.localScale = newV3;
-            yield return new WaitForSeconds(0.01f);
+            yield return null;
          }
          KMS.transform.localScale = to;
       }
@@ -71,7 +71,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
             newV3.y = Mathf.LerpAngle(fro.y, to.y, sigmoidLerp(i/10f));
             newV3.z = Mathf.LerpAngle(fro.z, to.z, sigmoidLerp(i/10f));
             KMS.transform.localScale = newV3;
-            yield return new WaitForSeconds(0.01f);
+            yield return null;
          }
          KMS.transform.localScale = to;
       }
@@ -86,7 +86,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
             newV3.y = Mathf.LerpAngle(fro.y, to.y, sigmoidLerp(i/speed));
             newV3.z = Mathf.LerpAngle(fro.z, to.z, sigmoidLerp(i/speed));
             KMS.transform.localPosition = newV3;
-            yield return new WaitForSeconds(0.01f);
+            yield return null;
          }
          KMS.transform.localPosition = to;
       }
@@ -110,39 +110,27 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
 
       public IEnumerator AniMat(int[] order, bool wait = false){
          //0123 => cymk
-         if(wait){
-            yield return new WaitForSeconds(1f);
-         }
+         Color fro = KMS.GetComponent<Renderer>().material.color;
+         Color to = StaticCubeMats[order[0]].color;
+         Color newClr = fro;
 
-         while(isAni) yield return new WaitForSeconds(0.01f);
-         isAni = true;
+         int speed = wait ? 140 : 30;
+         if(wait) yield return new WaitForSeconds(1f);
 
-         int i = 0;
-         Color clr = KMS.GetComponent<Renderer>().material.color;
-         Color tclr = StaticCubeMats[order[i]].color;
-         float r = 0, g = 0, b = 0;
-         float spd = 0.07f;
-         int failsafe = 0;
-         if(!wait) spd = 0.2f;
-         while(i < order.Length){
-            r = (tclr.r - clr.r)*spd + clr.r;
-            g = (tclr.g - clr.g)*spd + clr.g;
-            b = (tclr.b - clr.b)*spd + clr.b;
-
-            clr = new Color(r,g,b);
-            KMS.GetComponent<Renderer>().material.color = clr;
-
-            if((failsafe > 20 && !wait) || clr == tclr){
-               i++;
-               if(i >= order.Length) break;
-               tclr = StaticCubeMats[order[i]].color;
-               failsafe = 0;
+         for(int j = 0; j < order.Length; j++){
+            for(int i = 0; i < speed; i++){
+               newClr.r = Mathf.Lerp(fro.r, to.r, sigmoidLerp(i/(float)speed));
+               newClr.g = Mathf.Lerp(fro.g, to.g, sigmoidLerp(i/(float)speed));
+               newClr.b = Mathf.Lerp(fro.b, to.b, sigmoidLerp(i/(float)speed));
+               KMS.GetComponent<Renderer>().material.color = newClr;
+               yield return null;
             }
-            
-            failsafe++;
-            yield return new WaitForSeconds(0.002f);
+            KMS.GetComponent<Renderer>().material.color = to;
+            if (j < order.Length - 1){
+               fro = to;
+               to = StaticCubeMats[order[j + 1]].color;
+            }
          }
-         isAni = false;
       }
    }
 
@@ -154,7 +142,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       GetComponent<KMBombModule>().OnActivate += Activate;
       FirstActivation = true; //setup in Activate()
 
-      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.0.4", ModuleId);
+      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.0.5", ModuleId);
 
       ModState = "START";
       StaticCubeMats = CubeMats;
@@ -196,10 +184,12 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
          if(CubeArr[i].CurrentPosInd == CubeArr[i].GoalPosInd) return;
          for(int j = 0; j < 64; j++){
             if(CubeArr[i].GoalPosInd == CubeArr[j].CurrentPosInd){
-               StartCoroutine(CubeArr[j].AniMat(new int[] {0,2}, false));
+               if(CubeArr[j].AniMatCoroutine != null) StopCoroutine(CubeArr[j].AniMatCoroutine);
+               CubeArr[j].AniMatCoroutine = StartCoroutine(CubeArr[j].AniMat(new int[] {0,2}, false));
             }
             if(CubeArr[j].GoalPosInd == CubeArr[i].CurrentPosInd){
-               StartCoroutine(CubeArr[j].AniMat(new int[] {3,2}, false));
+               if(CubeArr[j].AniMatCoroutine != null) StopCoroutine(CubeArr[j].AniMatCoroutine);
+               CubeArr[j].AniMatCoroutine = StartCoroutine(CubeArr[j].AniMat(new int[] {3,2}, false));
             }
          }
          return;
@@ -228,8 +218,8 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
          i = b;
       }
 
-      CheckCubeGoal(CubeArr[i]);
-      CheckCubeGoal(CubeArr[HoleCubeIndex]);
+      CheckCubeGoal(i);
+      CheckCubeGoal(HoleCubeIndex);
 
       for(int j = 0; j < 64; j++){
          if(CubeArr[j].CurrentPosInd != CubeArr[j].GoalPosInd){
@@ -383,11 +373,12 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       HoleCubeIndex = HolePos;
    }
 
-   void CheckCubeGoal(SlidingCube a){
-      if(a.CurrentPosInd == a.GoalPosInd){
-         StartCoroutine(a.AniMat(new int[] {1}, false));
+   void CheckCubeGoal(int i){
+      if(CubeArr[i].AniMatCoroutine != null) StopCoroutine(CubeArr[i].AniMatCoroutine);
+      if(CubeArr[i].CurrentPosInd == CubeArr[i].GoalPosInd){
+         CubeArr[i].AniMatCoroutine = StartCoroutine(CubeArr[i].AniMat(new int[] {1}, false));
       } else {
-         StartCoroutine(a.AniMat(new int[] {2}, false));
+         CubeArr[i].AniMatCoroutine = StartCoroutine(CubeArr[i].AniMat(new int[] {2}, false));
       }
    }
 
@@ -397,9 +388,9 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       for(int i = 0; i < 64; i++){
          StartCoroutine(CubeArr[i].Slide(150f));
          if(CubeArr[i].CurrentPosInd == CubeArr[i].GoalPosInd){
-            StartCoroutine(CubeArr[i].AniMat(new int[] {3,0,1}, true));
+            CubeArr[i].AniMatCoroutine = StartCoroutine(CubeArr[i].AniMat(new int[] {0,1}, true));
          } else {
-            StartCoroutine(CubeArr[i].AniMat(new int[] {3,0,2}, true));
+            CubeArr[i].AniMatCoroutine = StartCoroutine(CubeArr[i].AniMat(new int[] {0,2}, true));
          }
          yield return new WaitForSeconds(0.02f);
       }
@@ -445,10 +436,14 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       ModState = "SOLVED";
       //cymk
       StartCoroutine(RotateToZero());
-      for(int i = 0; i < 64; i++) StartCoroutine(CubeArr[i].AniMat(new int[] {0}, true));
+      for(int i = 0; i < 64; i++){
+         if(CubeArr[i].AniMatCoroutine != null) StopCoroutine(CubeArr[i].AniMatCoroutine);
+         CubeArr[i].AniMatCoroutine = StartCoroutine(CubeArr[i].AniMat(new int[] {0}, true));
+      }
       yield return new WaitForSeconds(0.7f);
       for(int i = 0; i < 64; i++){
-         StartCoroutine(CubeArr[i].AniMat(new int[] {2}, true));
+         if(CubeArr[i].AniMatCoroutine != null) StopCoroutine(CubeArr[i].AniMatCoroutine);
+         CubeArr[i].AniMatCoroutine = StartCoroutine(CubeArr[i].AniMat(new int[] {2}, true));
          yield return new WaitForSeconds(0.02f);
       }
       yield return new WaitForSeconds(1.4f);
@@ -456,7 +451,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       for(int i = 0; i < 64; i++){
          CubeArr[i].CurrentPosInd = -1;
          StartCoroutine(CubeArr[i].Slide());
-         yield return new WaitForSeconds(0.01f);
+         yield return null;
       }
       CubeArr[0].KMS.AddInteractionPunch(4f);
    }
