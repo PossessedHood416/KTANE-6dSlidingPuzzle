@@ -16,10 +16,10 @@ MonoBehaviour:
   author: PossessedHood416
   description: "Y'know, I was good with these kinda puzzles as a kid. But like, yeesh.\n\nSlide
     some cubes into place through higher dimensions.\n\nIdle cube fluctuation code
-    from GhostSalt's Game of Life 3D.\nPuzzle rotation code from Royal_Flu$h's The
-    Cube.\nMusic: Battle: Guardian | The Legend of Zelda: Breath of the Wild.\t \n\nThe
-    manual can be found in the manuals folder of the game or at ktane.timwi.de.\n\r\nContact
-    possessedHood416 on Discord if there are any bugs."
-  version: v1.0.3.1
+    from GhostSalt's Game of Life 3D.\nMusic: Battle: Guardian | The Legend of Zelda:
+    Breath of the Wild.\t \n\nThe manual can be found in the manuals folder of the
+    game or at ktane.timwi.de.\n\r\nContact possessedHood416 on Discord if there are
+    any bugs."
+  version: v1.0.4
   outputFolder: build
   previewImage: {fileID: 2800000, guid: fba117c31da2a8f449d146ce9e6eb76a, type: 3}

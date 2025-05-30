@@ -1,7 +1,4 @@
 ﻿/* TODO
-- lerp slide
-- lerp scale
-- lerp rotate
 - lerp color
 - optimize wiggle
 - tp handler + auto
@@ -18,14 +15,12 @@ using Rnd = UnityEngine.Random;
 //using Math = ExMath;
 
 public class sixDSlidingPuzzleScript : MonoBehaviour {
-
    public KMBombInfo Bomb;
    public KMAudio Audio;
 
    private static int ModuleIdCounter = 1;
    private int ModuleId;
    private bool ModuleSolved;
-
    private static bool FirstActivation = true;
 
    public KMSelectable[] CubeSelectables;
@@ -43,6 +38,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       public int CurrentPosInd;
       public int GoalPosInd;
       public bool isAni;
+      
       public SlidingCube(KMSelectable kms, int ind, int goal){
          KMS = kms;
          CurrentPosInd = ind;
@@ -51,40 +47,45 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       }
 
       public IEnumerator Shrink(){
-         float scale = KMS.transform.localScale.x * 0.99f;
-         int failsafe = 0;
-         while(scale > 0.05f && failsafe < 10){
-            KMS.transform.localScale = Vector3.one*scale;
-            scale *= scale;
-            failsafe++;
+         Vector3 fro = KMS.transform.localScale;
+         Vector3 to = Vector3.zero;
+         Vector3 newV3;
+
+         for(int i = 0; i < 10; i++){
+            newV3.x = Mathf.LerpAngle(fro.x, to.x, sigmoidLerp(i/10f));
+            newV3.y = Mathf.LerpAngle(fro.y, to.y, sigmoidLerp(i/10f));
+            newV3.z = Mathf.LerpAngle(fro.z, to.z, sigmoidLerp(i/10f));
+            KMS.transform.localScale = newV3;
             yield return new WaitForSeconds(0.01f);
          }
-         KMS.transform.localScale = Vector3.zero;
+         KMS.transform.localScale = to;
       }
 
       public IEnumerator Enlargen(){
-         float scale = KMS.transform.localScale.x + 0.01f;
-         int failsafe = 0;
-         while(scale < 0.99f && failsafe < 10){
-            KMS.transform.localScale = Vector3.one*scale;
-            scale = (float)Math.Sqrt(scale);
-            failsafe++;
+         Vector3 fro = KMS.transform.localScale;
+         Vector3 to = Vector3.one;
+         Vector3 newV3;
+
+         for(int i = 0; i < 10; i++){
+            newV3.x = Mathf.LerpAngle(fro.x, to.x, sigmoidLerp(i/10f));
+            newV3.y = Mathf.LerpAngle(fro.y, to.y, sigmoidLerp(i/10f));
+            newV3.z = Mathf.LerpAngle(fro.z, to.z, sigmoidLerp(i/10f));
+            KMS.transform.localScale = newV3;
             yield return new WaitForSeconds(0.01f);
          }
-         KMS.transform.localScale = Vector3.one;
+         KMS.transform.localScale = to;
       }
 
-      public IEnumerator Slide(float speed = 0.5f, int maxWait = 10){
+      public IEnumerator Slide(float speed = 10f){
          Vector3 fro = KMS.transform.localPosition;
          Vector3 to = IntToPos(CurrentPosInd);
+         Vector3 newV3;
 
-         //jank code but it works :P
-         int failsafe = 0;
-         while(fro != to && failsafe < maxWait){
-            to = IntToPos(CurrentPosInd);
-            fro = KMS.transform.localPosition;
-            KMS.transform.localPosition += (to - fro)*speed;
-            failsafe++;
+         for(int i = 0; i < speed; i++){
+            newV3.x = Mathf.LerpAngle(fro.x, to.x, sigmoidLerp(i/speed));
+            newV3.y = Mathf.LerpAngle(fro.y, to.y, sigmoidLerp(i/speed));
+            newV3.z = Mathf.LerpAngle(fro.z, to.z, sigmoidLerp(i/speed));
+            KMS.transform.localPosition = newV3;
             yield return new WaitForSeconds(0.01f);
          }
          KMS.transform.localPosition = to;
@@ -153,7 +154,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       GetComponent<KMBombModule>().OnActivate += Activate;
       FirstActivation = true; //setup in Activate()
 
-      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.0.3.1", ModuleId);
+      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.0.4", ModuleId);
 
       ModState = "START";
       StaticCubeMats = CubeMats;
@@ -236,8 +237,6 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
          }
       }
       Solve();
-
-
    }
 
    void HingePress(KMSelectable Hinge){
@@ -396,7 +395,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
    IEnumerator StartupAni(){
       //cymk
       for(int i = 0; i < 64; i++){
-         StartCoroutine(CubeArr[i].Slide(0.04f, 180));
+         StartCoroutine(CubeArr[i].Slide(150f));
          if(CubeArr[i].CurrentPosInd == CubeArr[i].GoalPosInd){
             StartCoroutine(CubeArr[i].AniMat(new int[] {3,0,1}, true));
          } else {
@@ -404,46 +403,48 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
          }
          yield return new WaitForSeconds(0.02f);
       }
-      yield return new WaitForSeconds(5.72f);
+      yield return new WaitForSeconds(4f);
+      Debug.LogFormat("[6D Sliding Puzzle #{0}] Module is ready", ModuleId);
       ModState = "READY";
    }
 
-   IEnumerator RotatePuzzle(int axis, int dir){
-      ModState = "TURNING";
+   IEnumerator RotatePuzzle(int axis, int dir) {
       //axis 012 xyz
-      //dir 1 cw; -1 ccw
+      //dir 1cw -1ccw
+      ModState = "ROTATING";
+      Quaternion currentRotation = CubeParent.transform.localRotation;
+      Vector3 rotationAxis = Vector3.zero;
 
-      if(dir != 0){
-         int rotaCount = 0;
-         while(rotaCount < 15){
-            rotaCount++;
-
-            switch(axis){
-               case 0:
-                  CubeParent.transform.localRotation = Quaternion.Euler(dir*6.0f, 0.0f, 0.0f) * CubeParent.transform.localRotation;
-                  break;
-               case 1:
-                  CubeParent.transform.localRotation = Quaternion.Euler(0.0f, dir*6.0f, 0.0f) * CubeParent.transform.localRotation;
-                  break;
-               case 2:
-                  CubeParent.transform.localRotation = Quaternion.Euler(0.0f, 0.0f, dir*6.0f) * CubeParent.transform.localRotation;
-                  break;
-            }
-
-            yield return new WaitForSeconds(0.01f);
-         }
-
-      } else {
-         //swap halves mechanic that will not be in release
+      switch(axis) {
+         case 0:
+            rotationAxis = Vector3.right;
+            break;
+         case 1:
+            rotationAxis = Vector3.up;
+            break;
+         case 2:
+            rotationAxis = Vector3.forward;
+            break;
       }
 
+      Quaternion targetRotation = Quaternion.AngleAxis(90 * dir, rotationAxis) * currentRotation;
+      float rotationDuration = 0.8f;
+      float elapsedTime = 0f;
+
+      while (elapsedTime < rotationDuration) {
+         CubeParent.transform.localRotation = Quaternion.Slerp(currentRotation, targetRotation, sigmoidLerp(elapsedTime / rotationDuration));
+         elapsedTime += Time.deltaTime;
+         yield return null;
+      }
+
+      CubeParent.transform.localRotation = targetRotation;
       ModState = "READY";
    }
 
    IEnumerator WinAni(){
       ModState = "SOLVED";
       //cymk
-      StartCoroutine(RotateBetter());
+      StartCoroutine(RotateToZero());
       for(int i = 0; i < 64; i++) StartCoroutine(CubeArr[i].AniMat(new int[] {0}, true));
       yield return new WaitForSeconds(0.7f);
       for(int i = 0; i < 64; i++){
@@ -454,22 +455,34 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
 
       for(int i = 0; i < 64; i++){
          CubeArr[i].CurrentPosInd = -1;
-         StartCoroutine(CubeArr[i].Slide(0.3f, 180));
+         StartCoroutine(CubeArr[i].Slide());
          yield return new WaitForSeconds(0.01f);
       }
       CubeArr[0].KMS.AddInteractionPunch(4f);
    }
 
-   IEnumerator RotateBetter(){
+   IEnumerator RotateToZero(){
       Vector3 rot = CubeParent.transform.localRotation.eulerAngles;
       Vector3 rot2 = Vector3.zero;
-      for(int i = 0; i < 361; i++){
-         rot2.x = Mathf.LerpAngle(rot.x, 0, Mathf.Sqrt(i)/19f);
-         rot2.y = Mathf.LerpAngle(rot.y, 0, Mathf.Sqrt(i)/19f);
-         rot2.z = Mathf.LerpAngle(rot.z, 0, Mathf.Sqrt(i)/19f);
+
+      //you WILL get cool animations 
+      if(rot.x == 0) rot.x = 180;
+      if(rot.y == 0) rot.y = 180;
+      if(rot.z == 0) rot.z = 180;
+
+      for(int i = 0; i < 350; i++){
+         rot2.x = Mathf.LerpAngle(rot.x, 0, sigmoidLerp(i/600f));
+         rot2.y = Mathf.LerpAngle(rot.y, 0, sigmoidLerp(i/600f));
+         rot2.z = Mathf.LerpAngle(rot.z, 0, sigmoidLerp(i/600f));
          CubeParent.transform.localRotation = Quaternion.Euler(rot2.x, rot2.y, rot2.z);
          yield return new WaitForSeconds(0.015f);
       }
+   }
+
+   static float sigmoidLerp(float i){
+      //paste this into desmos
+      //   \frac{2.013475894}{1+e^{-7x}}-1
+      return 2.013475894f/(1+Mathf.Pow(2.718281828459f, -7*i)) - 1.0f;
    }
 
 #pragma warning disable 414
