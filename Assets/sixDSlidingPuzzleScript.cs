@@ -1,6 +1,5 @@
 ﻿/* TODO
 - optimize wiggle
-- tp handler + auto
 */
 
 using System;
@@ -31,6 +30,8 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
 
    private string ModState;
    private int HingePrevious;
+   private List<string> RotationHistory = new List<string>();
+   private List<string> HoleHistory = new List<string>();
 
    public struct SlidingCube{
       public KMSelectable KMS;
@@ -141,7 +142,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       GetComponent<KMBombModule>().OnActivate += Activate;
       FirstActivation = true; //setup in Activate()
 
-      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.0.5.1", ModuleId);
+      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.1.0", ModuleId);
 
       ModState = "START";
       StaticCubeMats = CubeMats;
@@ -194,10 +195,12 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
          return;
       }
 
+      HoleHistory.Add(decToOct(CubeArr[HoleCubeIndex].CurrentPosInd));
+
       //use to swap shit
       int b;
 
-      if(adjint <= 2){ //slide
+      if(adjint > 2){ //slide
          b = CubeArr[HoleCubeIndex].CurrentPosInd;
          CubeArr[HoleCubeIndex].CurrentPosInd = CubeArr[i].CurrentPosInd;
          CubeArr[i].CurrentPosInd = b;
@@ -284,20 +287,14 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
    //position fuckery
    static int[] IntToArr (int i) {
       string posString = Convert.ToString(i, 2);
-      while(posString.Length < 6){
-         posString = "0" + posString;
-      }
-      int[] arr = {0,0,0,0,0,0};
-      for(int j = 0; j<6; j++){
-         arr[j] = (posString[5-j] == '1') ? 1 : 0;
-      }
-      return arr;
+      posString = posString.PadLeft(6, '0'); 
+      return posString.Select(c => c - '0').ToArray();
    }
 
    static int ArrToInt (int[] arr) {
       string posString = "";
-      for(int j = 5; j>=0; j--){
-         posString += arr[j].ToString();
+      for(int i = 0; i < 6; i++){
+         posString += arr[i].ToString();
       }
       return Convert.ToInt32(posString, 2);
    }
@@ -338,13 +335,12 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       if(i == -1) return new Vector3(0f, -5f, 0f);
       Vector3 pos = new Vector3(-2.5f, -2.5f, -2.5f);
       int[] arr = IntToArr(i);
-      //XYZ RTS
-      if(arr[0] == 1) pos.x += 1.2f;
-      if(arr[1] == 1) pos.y += 1.2f;
-      if(arr[2] == 1) pos.z += 1.2f;
-      if(arr[3] == 1) pos.x += 3.8f;
-      if(arr[4] == 1) pos.y += 3.8f;
-      if(arr[5] == 1) pos.z += 3.8f;
+      if(arr[5] == 1) pos.x += 1.2f;
+      if(arr[4] == 1) pos.y += 1.2f;
+      if(arr[3] == 1) pos.z += 1.2f;
+      if(arr[2] == 1) pos.x += 3.8f;
+      if(arr[1] == 1) pos.y += 3.8f;
+      if(arr[0] == 1) pos.z += 3.8f;
       return pos;
    }
 
@@ -358,6 +354,8 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
          TargetArr[axisToSwap] = (TargetArr[axisToSwap] + 1) % 2;
          int TargetPos = ArrToInt(TargetArr);
 
+         HoleHistory.Add(decToOct(TargetPos));
+
          int b = texts[HolePos];
          texts[HolePos] = texts[TargetPos];
          texts[TargetPos] = b;
@@ -367,6 +365,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
          TargetPos = b;
       }
       HoleCubeIndex = HolePos;
+      HoleHistory.Reverse(); //my gen alg was backwards, too lazy to fix :P
    }
 
    void CheckCubeGoal(int i){
@@ -376,6 +375,22 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       } else {
          CubeArr[i].AniMatCoroutine = StartCoroutine(CubeArr[i].AniMat(new int[] {2}, false));
       }
+   }
+
+   string decToOct(int dec) {
+      string oct = "";
+      while (dec > 0) {
+         oct = (dec % 8).ToString() + oct;
+         dec /= 8;
+      }
+      return oct.PadLeft(2, '0');
+   }
+
+   int octToDec(string oct) {
+      if(oct.Length != 2 || !Regex.IsMatch(oct, @"^[0-7][0-7]$")) {
+         throw new ArgumentException("Invalid octal string: " + oct);
+      }
+      return Convert.ToInt32(oct, 8);
    }
 
    //anis
@@ -399,6 +414,8 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       //axis 012 xyz
       //dir 1cw -1ccw
       ModState = "ROTATING";
+      RotationHistory.Add("XYZ"[(axis + dir + 3)%3].ToString() + "XYZ"[(axis + dir*2 + 3)%3].ToString());
+
       Quaternion currentRotation = CubeParent.transform.localRotation;
       Vector3 rotationAxis = Vector3.zero;
 
@@ -488,16 +505,240 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
    }
 
 #pragma warning disable 414
-   private readonly string TwitchHelpMessage = @"MOD CURRENTLY UNSUPPORTED: !{0} <anything> TO SOLVE.";
+   private readonly string TwitchHelpMessage = @"!{0} rotate <u/d/l/r/cw/ccw> to rotate (chainable), !{0} query <cube id> to see which cubes change colour, !{0} press <cube id> to move cubes (chainable). See manual for cube ids";
 #pragma warning restore 414
 
    IEnumerator ProcessTwitchCommand (string Command) {
-      Solve();
-      yield return null;
+
+      if(ModState != "READY") {
+         yield return "sendtochaterror Module is not ready, please wait for the startup animation to finish.";
+         yield break;
+      }
+
+      Command = Command.Trim().ToUpper();
+      string[] Commands = Command.Split(' ');
+
+      switch (Commands[0]) {
+         case "ROTATE":
+         case "ROTA":
+         case "R":
+            for(int i = 1; i < Commands.Length; i++) {
+               switch(Commands[i]) {
+                  case "YZ":
+                  case "U":
+                  case "UP":
+                     StartCoroutine(RotatePuzzle(0, 1));
+                     break;
+
+                  case "ZY":
+                  case "D":
+                  case "DOWN":
+                     StartCoroutine(RotatePuzzle(0, -1));
+                     break;
+
+                  case "XY":
+                  case "L":
+                  case "LEFT":
+                     StartCoroutine(RotatePuzzle(2, 1));
+                     break;
+
+                  case "YX":
+                  case "R":
+                  case "RIGHT":
+                     StartCoroutine(RotatePuzzle(2, -1));
+                     break;
+
+                  case "ZX":
+                  case "CW":
+                  case "CLOCK":
+                  case "CLOCKWISE":
+                     StartCoroutine(RotatePuzzle(1, 1));
+                     break;
+
+                  case "XZ":
+                  case "CCW":
+                  case "COUNTERCLOCKWISE":
+                  case "COUNTER":
+                     StartCoroutine(RotatePuzzle(1, -1));
+                     break;
+
+                  default:
+                     yield return "sendtochaterror Invalid rotation command: " + Commands[i];
+                     i = Commands.Length; //stupid exit loop bodge
+                     yield break;
+               }
+               yield return new WaitForSeconds(0.7f);
+            }
+            yield break;
+
+         case "QUERRY":
+         case "QUERY":
+         case "Q":
+            if(Commands.Length == 1) {
+               yield return "sendtochaterror Query what.";
+               yield break;
+            }
+
+            if(Commands[1].Length != 2 || !Regex.IsMatch(Commands[1], @"^[0-7][0-7]$")) {
+               yield return "sendtochaterror Invalid cube index: " + Commands[1];
+            }
+
+            int q = unapplyRotas(octToDec(Commands[1]));
+            int k = -1;
+            int c = -1;
+
+            //find the cube
+            int qbIndex = 0;
+            for(; qbIndex < 64; qbIndex++) {
+               if(CubeArr[qbIndex].CurrentPosInd == q) {     
+                  break;
+               }
+            }
+
+            if(CubeArr[qbIndex].CurrentPosInd == CubeArr[qbIndex].GoalPosInd) {
+               yield return string.Format("sendtochat The cube at {0} is already in its goal position.", Commands[1]);
+               yield break;
+            }
+            if(IsAdjacent(CubeArr[qbIndex], CubeArr[HoleCubeIndex]) != -1) {
+               yield return string.Format("sendtochat The cube at {0} is adjacent to the hole, cannot querry.", Commands[1]);
+               yield break;
+            }
+            if(qbIndex == HoleCubeIndex) {
+               yield return string.Format("sendtochat The cube at {0} doesn't exist, cannot querry.", Commands[1]);
+               yield break;
+            }
+
+            //find k and c cubes
+            for(int j = 0; j < 64; j++) {
+               if(CubeArr[qbIndex].CurrentPosInd == CubeArr[j].GoalPosInd) {
+                  k = CubeArr[j].CurrentPosInd;
+               }
+               if(CubeArr[qbIndex].GoalPosInd == CubeArr[j].CurrentPosInd) {
+                  c = CubeArr[j].CurrentPosInd;
+               }
+            }
+
+            k = applyRotas(k);
+            c = applyRotas(c);
+
+            TPpress(decToOct(q));
+            yield return string.Format("sendtochat Pressing {0} turns {1} black and {2} cyan.", Commands[1], decToOct(k), decToOct(c));
+            yield break;
+
+         case "PRESS":
+         case "P":
+            for(int i = 1; i < Commands.Length; i++) {
+               if(Commands[i].Length != 2 || !Regex.IsMatch(Commands[i], @"^[0-7][0-7]$")) {
+                  yield return "sendtochaterror Invalid cube index: " + Commands[i];
+                  yield break;
+               }
+
+               if(IsAdjacent(CubeArr[HoleCubeIndex].CurrentPosInd, octToDec(Commands[i])) == -1) {
+                  yield return string.Format("sendtochaterror The cube at {0} is not adjacent to (or is) the hole.", Commands[i]);
+                  yield break;
+               }
+
+               TPpress(unapplyRotas(octToDec(Commands[i])));
+               yield return new WaitForSeconds(0.3f);
+               
+            }
+            yield break;
+
+         default:
+            yield return "sendtochaterror Invalid command: " + Commands[0];
+            yield break;
+      }
    }
 
    IEnumerator TwitchHandleForcedSolve () {
-      Solve();
-      yield return null;
+      while(ModState != "READY") {
+         yield return null;
+      }
+
+      for(int i = HoleHistory.Count-1; i >= 0; i--){
+         TPpress(HoleHistory[i]);
+         yield return new WaitForSeconds(0.05f);         
+      }
    }
+
+   int unapplyRotas (int pos){
+      int initial = pos;
+      int[] lookupTurn = {1,3,0,2};
+      string XYZ = "ZYX";
+
+      //trust me on this: dont trust me on this
+      for(int i = RotationHistory.Count-1; i >= 0; i--){
+         string rota = RotationHistory[i];
+         int[] posBin = IntToArr(pos);
+
+         //high dimensions
+         int lookupIndex = posBin[XYZ.IndexOf(rota[0])] *2;
+         lookupIndex+= posBin[XYZ.IndexOf(rota[1])];
+
+         lookupIndex = lookupTurn[lookupIndex];
+
+         posBin[XYZ.IndexOf(rota[0])] = (int)(lookupIndex/2);
+         posBin[XYZ.IndexOf(rota[1])] = lookupIndex % 2;
+
+         //low dimensions
+         lookupIndex = posBin[XYZ.IndexOf(rota[0])+3] *2;
+         lookupIndex+= posBin[XYZ.IndexOf(rota[1])+3];
+
+         lookupIndex = lookupTurn[lookupIndex];
+
+         posBin[XYZ.IndexOf(rota[0])+3] = (int)(lookupIndex/2);
+         posBin[XYZ.IndexOf(rota[1])+3] = lookupIndex % 2;
+
+         pos = ArrToInt(posBin);
+      }
+      return pos;
+   }
+
+   int applyRotas (int pos){
+      int initial = pos;
+      int[] lookupTurn = {2,0,3,1};
+      string XYZ = "ZYX";
+
+      for(int i = 0; i < RotationHistory.Count; i++){
+         string rota = RotationHistory[i];
+         int[] posBin = IntToArr(pos);
+
+         //high dimensions
+         int lookupIndex = posBin[XYZ.IndexOf(rota[0])] *2;
+         lookupIndex+= posBin[XYZ.IndexOf(rota[1])];
+
+         lookupIndex = lookupTurn[lookupIndex];
+
+         posBin[XYZ.IndexOf(rota[0])] = (int)(lookupIndex/2);
+         posBin[XYZ.IndexOf(rota[1])] = lookupIndex % 2;
+
+         //low dimensions
+         lookupIndex = posBin[XYZ.IndexOf(rota[0])+3] *2;
+         lookupIndex+= posBin[XYZ.IndexOf(rota[1])+3];
+
+         lookupIndex = lookupTurn[lookupIndex];
+
+         posBin[XYZ.IndexOf(rota[0])+3] = (int)(lookupIndex/2);
+         posBin[XYZ.IndexOf(rota[1])+3] = lookupIndex % 2;
+
+         pos = ArrToInt(posBin);
+      }
+      return pos;
+   }
+
+   void TPpress(string octal){
+      int i = octToDec(octal);
+      for(int j = 0; j < 64; j++){
+         if(CubeArr[j].CurrentPosInd == i && j != HoleCubeIndex){
+            CubePress(CubeArr[j].KMS);
+            return;
+         }
+      }
+   }
+
+   void TPpress(int i){
+      TPpress(decToOct(i));
+   }
+
+
 }
