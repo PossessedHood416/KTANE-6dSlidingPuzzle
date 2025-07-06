@@ -142,7 +142,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       GetComponent<KMBombModule>().OnActivate += Activate;
       FirstActivation = true; //setup in Activate()
 
-      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.1.0", ModuleId);
+      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.1.1.", ModuleId);
 
       ModState = "START";
       StaticCubeMats = CubeMats;
@@ -406,7 +406,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
          yield return new WaitForSeconds(0.02f);
       }
       yield return new WaitForSeconds(4f);
-      Debug.LogFormat("[6D Sliding Puzzle #{0}] Module is ready", ModuleId);
+      Debug.LogFormat("[6D Sliding Puzzle #{0}] Module is ready.", ModuleId);
       ModState = "READY";
    }
 
@@ -505,7 +505,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
    }
 
 #pragma warning disable 414
-   private readonly string TwitchHelpMessage = @"!{0} rotate <u/d/l/r/cw/ccw> to rotate (chainable), !{0} query <cube id> to see which cubes change colour, !{0} press <cube id> to move cubes (chainable). See manual for cube ids";
+   private readonly string TwitchHelpMessage = @"!{0} rotate <u/d/l/r/cw/ccw> to rotate (chainable with spaces), !{0} query <cube id> to see which cubes change colour, !{0} press <cube id> to move cubes (chainable with spaces). See manual for cube ids.";
 #pragma warning restore 414
 
    IEnumerator ProcessTwitchCommand (string Command) {
