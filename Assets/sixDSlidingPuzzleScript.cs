@@ -20,6 +20,8 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
    private int ModuleId;
    private bool ModuleSolved;
    private static bool FirstActivation = true;
+   private string ModState;
+   bool TwitchPlaysActive;
 
    public KMSelectable[] CubeSelectables;
    public KMSelectable[] HingeSelectables;
@@ -28,7 +30,6 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
    public static Material[] StaticCubeMats;
    public GameObject StatusLight;
 
-   private string ModState;
    private int HingePrevious;
    private List<string> RotationHistory = new List<string>();
    private List<string> HoleHistory = new List<string>();
@@ -142,7 +143,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       GetComponent<KMBombModule>().OnActivate += Activate;
       FirstActivation = true; //setup in Activate()
 
-      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.1.1.", ModuleId);
+      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.1.2.", ModuleId);
 
       ModState = "START";
       StaticCubeMats = CubeMats;
@@ -348,7 +349,13 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       //it just works i think
       int HolePos = HoleCubeIndex;
 
-      for(int i = 0; i < 512; i++){
+      int ShuffleStrength = 512;
+      if(TwitchPlaysActive){
+         Debug.LogFormat("[6D Sliding Puzzle #{0}] Twitch Plays detected, partially scrambling.", ModuleId);
+         ShuffleStrength = 32;
+      }
+
+      for(int i = 0; i < ShuffleStrength; i++){
          int axisToSwap = Rnd.Range(0, 6);
          int[] TargetArr = IntToArr(HolePos);
          TargetArr[axisToSwap] = (TargetArr[axisToSwap] + 1) % 2;
