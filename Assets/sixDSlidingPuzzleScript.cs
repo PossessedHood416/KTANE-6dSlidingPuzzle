@@ -143,7 +143,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
       GetComponent<KMBombModule>().OnActivate += Activate;
       FirstActivation = true; //setup in Activate()
 
-      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.1.2.", ModuleId);
+      Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.1.3.", ModuleId);
 
       ModState = "START";
       StaticCubeMats = CubeMats;
@@ -512,7 +512,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
    }
 
 #pragma warning disable 414
-   private readonly string TwitchHelpMessage = @"!{0} rotate <u/d/l/r/cw/ccw> to rotate (chainable with spaces), !{0} query <cube id> to see which cubes change colour, !{0} press <cube id> to move cubes (chainable with spaces). See manual for cube ids.";
+   private readonly string TwitchHelpMessage = @"!{0} ROTATE <U/D/L/R/CW/CCW> to rotate (chainable with spaces), !{0} QUERY <CUBE ID> to see which cubes change colour, !{0} PRESS <CUBE ID> to move cubes (chainable with spaces). !{0} HOLE to find the hole's position. See manual for cube ids.";
 #pragma warning restore 414
 
    IEnumerator ProcessTwitchCommand (string Command) {
@@ -640,15 +640,21 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
                   yield break;
                }
 
-               if(IsAdjacent(CubeArr[HoleCubeIndex].CurrentPosInd, octToDec(Commands[i])) == -1) {
+               int p = unapplyRotas(octToDec(Commands[i]));
+
+               if(IsAdjacent(CubeArr[HoleCubeIndex].CurrentPosInd, p) == -1) {
                   yield return string.Format("sendtochaterror The cube at {0} is not adjacent to (or is) the hole.", Commands[i]);
                   yield break;
                }
 
-               TPpress(unapplyRotas(octToDec(Commands[i])));
+               TPpress(decToOct(p));
                yield return new WaitForSeconds(0.3f);
-               
             }
+            yield break;
+
+         case "HOLE":
+         case "H":
+            yield return string.Format("sendtochat Hole is at {0}.", decToOct(applyRotas(CubeArr[HoleCubeIndex].CurrentPosInd)));
             yield break;
 
          default:
