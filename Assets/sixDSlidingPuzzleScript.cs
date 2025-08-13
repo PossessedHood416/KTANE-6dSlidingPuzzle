@@ -143,7 +143,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
 		GetComponent<KMBombModule>().OnActivate += Activate;
 		FirstActivation = true; //setup in Activate()
 
-		Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.1.4.", ModuleId);
+		Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.1.5.", ModuleId);
 
 		ModState = "START";
 		StaticCubeMats = CubeMats;
@@ -588,6 +588,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
 
 				if(Commands[1].Length != 2 || !Regex.IsMatch(Commands[1], @"^[0-7][0-7]$")) {
 					yield return "sendtochaterror Invalid cube index: " + Commands[1];
+					yield break;
 				}
 
 				int q = unapplyRotas(octToDec(Commands[1]));
