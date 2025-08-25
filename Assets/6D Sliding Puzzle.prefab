@@ -15294,6 +15294,7 @@ MonoBehaviour:
   - {fileID: 2100000, guid: 774fa38d533803c47ae90b2ddc7d1800, type: 2}
   - {fileID: 2100000, guid: 70793cd88bcfbf24b8c50e1808367f2a, type: 2}
   - {fileID: 2100000, guid: 33e8c3bf0d746de48943a9cc3b0d7006, type: 2}
+  - {fileID: 2100000, guid: 0befeb020a9f3b54b8044dccec82add5, type: 2}
   StatusLight: {fileID: 1070815788600936}
 --- !u!114 &114547354960428798
 MonoBehaviour:

@@ -143,7 +143,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
 		GetComponent<KMBombModule>().OnActivate += Activate;
 		FirstActivation = true; //setup in Activate()
 
-		Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.1.5.", ModuleId);
+		Debug.LogFormat("[6D Sliding Puzzle #{0}] Running v1.2.", ModuleId);
 
 		ModState = "START";
 		StaticCubeMats = CubeMats;
@@ -184,11 +184,13 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
 		if(adjint == -1){
 			if(CubeArr[i].CurrentPosInd == CubeArr[i].GoalPosInd) return;
 			for(int j = 0; j < 64; j++){
-				if(CubeArr[i].GoalPosInd == CubeArr[j].CurrentPosInd){
+				if(CubeArr[i].GoalPosInd == CubeArr[j].CurrentPosInd && CubeArr[j].GoalPosInd == CubeArr[i].CurrentPosInd){
+					if(CubeArr[j].AniMatCoroutine != null) StopCoroutine(CubeArr[j].AniMatCoroutine);
+					CubeArr[j].AniMatCoroutine = StartCoroutine(CubeArr[j].AniMat(new int[] {4,2}, false));
+				} else if(CubeArr[i].GoalPosInd == CubeArr[j].CurrentPosInd){
 					if(CubeArr[j].AniMatCoroutine != null) StopCoroutine(CubeArr[j].AniMatCoroutine);
 					CubeArr[j].AniMatCoroutine = StartCoroutine(CubeArr[j].AniMat(new int[] {0,2}, false));
-				}
-				if(CubeArr[j].GoalPosInd == CubeArr[i].CurrentPosInd){
+				} else if(CubeArr[j].GoalPosInd == CubeArr[i].CurrentPosInd){
 					if(CubeArr[j].AniMatCoroutine != null) StopCoroutine(CubeArr[j].AniMatCoroutine);
 					CubeArr[j].AniMatCoroutine = StartCoroutine(CubeArr[j].AniMat(new int[] {3,2}, false));
 				}
@@ -630,7 +632,11 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
 				c = applyRotas(c);
 
 				TPpress(decToOct(q));
-				yield return string.Format("sendtochat Pressing {0} turns {1} black and {2} cyan.", Commands[1], decToOct(k), decToOct(c));
+				if(k == c){
+					yield return string.Format("sendtochat Pressing {0} turns {1} white.", Commands[1], decToOct(k));
+				} else {
+					yield return string.Format("sendtochat Pressing {0} turns {1} black and {2} cyan.", Commands[1], decToOct(k), decToOct(c));
+				} 
 				yield break;
 
 			case "PRESS":
