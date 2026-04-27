@@ -610,11 +610,11 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
 					yield break;
 				}
 				if(IsAdjacent(CubeArr[qbIndex], CubeArr[HoleCubeIndex]) != -1) {
-					yield return string.Format("sendtochat The cube at {0} is adjacent to the hole, cannot querry.", Commands[1]);
+					yield return string.Format("sendtochat The cube at {0} is adjacent to the hole, cannot query.", Commands[1]);
 					yield break;
 				}
 				if(qbIndex == HoleCubeIndex) {
-					yield return string.Format("sendtochat The cube at {0} doesn't exist, cannot querry.", Commands[1]);
+					yield return string.Format("sendtochat The cube at {0} doesn't exist, cannot query.", Commands[1]);
 					yield break;
 				}
 
@@ -656,7 +656,7 @@ public class sixDSlidingPuzzleScript : MonoBehaviour {
 					}
 
 					TPpress(decToOct(p));
-					yield return new WaitForSeconds(0.3f);
+					yield return new WaitForSeconds(0.1f);
 				}
 				yield break;
 
